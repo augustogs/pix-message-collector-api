@@ -14,5 +14,6 @@ app.get('/', (req: Request, res: Response) => {
 });
 
 app.use('/api/util', pixRoutes);
+app.use('/api/pix', pixRoutes);
 
 export default app;

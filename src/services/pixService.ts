@@ -56,3 +56,13 @@ export const insertPixMessages = async (ispb: string, number: number): Promise<P
 
   return messages;
 };
+
+export const getPixMessages = async (ispb: string): Promise<PixMessage[]> => {
+  const client = await pool.connect();
+
+  await client.query('BEGIN');
+
+  const res = await client.query(`SELECT * FROM pix_messages WHERE recebedor_ispb = $1`, [ispb]);
+
+  return res.rows;
+}

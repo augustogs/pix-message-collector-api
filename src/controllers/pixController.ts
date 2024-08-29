@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { insertPixMessages } from '../services/pixService';
+import { insertPixMessages, getPixMessages } from '../services/pixService';
 
 export const postMessages = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -18,3 +18,23 @@ export const postMessages = async (req: Request, res: Response): Promise<void> =
     res.status(500).json({ error: 'Internal server error' });
   }
 };
+
+export const getMessages = async (req: Request, res: Response): Promise<void> => {
+  const contentType = req.headers['content-type'];
+
+  try {
+    const { ispb } = req.params;
+    const messages = await getPixMessages(ispb);
+
+    if (!contentType || contentType === 'application/json') {
+      res.status(200).json(messages[0]);
+    }
+
+    if (contentType === 'multipart/json') {
+      res.status(200).json(messages);
+    }
+
+  } catch (error) {
+    res.status(204).json({ error : 'Internal server error' });
+  }
+}
