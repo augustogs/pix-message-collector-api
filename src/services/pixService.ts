@@ -80,7 +80,7 @@ export const getPixMessagesByInteractionId = async (ispb: string, limit: number,
   const client = await pool.connect();
   
   try {
-    const queryAllMessages = await client.query(`SELECT id, end_to_end_id, valor FROM pix_messages where recebedor_ispb = $1`, [ispb]);
+    const queryAllMessages = await client.query(`SELECT * FROM pix_messages where recebedor_ispb = $1`, [ispb]);
     const allMessages = queryAllMessages.rows;
   
     const queryLogInteraction =  await client.query(`SELECT message_ids FROM interaction_logs WHERE interaction_id = $1`, [interaction_id]);

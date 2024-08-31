@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { insertPixMessages, getPixMessages, logInteraction, getPixMessagesByInteractionId } from '../services/pixService';
 import { generateId } from '../utils/dataGenerator';
+import { formatMessage } from '../utils/formatMessage';
 
 export const postMessages = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -34,12 +35,14 @@ export const getMessages = async (req: Request, res: Response): Promise<void> =>
     const pullNextUri = `/api/pix/${ispb}/stream/${interaction_id}`;
     res.setHeader('Pull-Next', pullNextUri);
 
+    const formattedMessages = messages.map(formatMessage);
+
     if (!contentType || contentType === 'application/json') {
-      res.status(200).json(messages[0] || {});
+      res.status(200).json(formattedMessages[0] || {});
     } 
     
     if (contentType === 'multipart/json') {
-      res.status(200).json(messages);
+      res.status(200).json(formattedMessages);
     }
   } catch (error) {
     res.status(500).json({ error: 'Internal server error' });
@@ -57,11 +60,13 @@ export const getMessagesByInteractionId = async (req: Request, res: Response): P
     const pullNextUri = `/api/pix/${ispb}/stream/${messages.nextInteractionId}`;
     res.setHeader('Pull-Next', pullNextUri);
 
+    const formattedMessages = messages.newMessages.map(formatMessage);
+
     if (!contentType || contentType === 'application/json') {
-      res.status(200).json(messages.newMessages[0] || {});
+      res.status(200).json(formattedMessages[0] || {});
     }
     if (contentType === 'multipart/json') {
-      res.status(200).json(messages);
+      res.status(200).json(formattedMessages);
     }
   } catch (error) {  
     res.status(500).json({ error: 'Internal server error' });
