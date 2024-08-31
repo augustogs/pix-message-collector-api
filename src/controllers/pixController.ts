@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
-import { insertPixMessages, getPixMessages } from '../services/pixService';
+import { insertPixMessages, getPixMessages, logInteraction, getPixMessagesByInteractionId } from '../services/pixService';
+import { generateId } from '../utils/dataGenerator';
 
 export const postMessages = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -21,20 +22,48 @@ export const postMessages = async (req: Request, res: Response): Promise<void> =
 
 export const getMessages = async (req: Request, res: Response): Promise<void> => {
   const contentType = req.headers['content-type'];
+  const { ispb } = req.params;
+  const limit = 10;
 
   try {
-    const { ispb } = req.params;
-    const messages = await getPixMessages(ispb);
+    const messages = await getPixMessages(ispb, limit);
+    const interaction_id = generateId();
+
+    await logInteraction(interaction_id, ispb, messages.map(msg => msg.endToEndId));
+
+    const pullNextUri = `/api/pix/${ispb}/stream/${interaction_id}`;
+    res.setHeader('Pull-Next', pullNextUri);
 
     if (!contentType || contentType === 'application/json') {
-      res.status(200).json(messages[0]);
-    }
-
+      res.status(200).json(messages[0] || {});
+    } 
+    
     if (contentType === 'multipart/json') {
       res.status(200).json(messages);
     }
-
   } catch (error) {
-    res.status(204).json({ error : 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+export const getMessagesByInteractionId = async (req: Request, res: Response): Promise<void> => {
+  const contentType = req.headers['content-type'];
+  const { ispb, interaction_id } = req.params;
+  const limit = 10;
+
+  try {
+    const messages = await getPixMessagesByInteractionId(ispb, limit, interaction_id);
+
+    const pullNextUri = `/api/pix/${ispb}/stream/${messages.nextInteractionId}`;
+    res.setHeader('Pull-Next', pullNextUri);
+
+    if (!contentType || contentType === 'application/json') {
+      res.status(200).json(messages.newMessages[0] || {});
+    }
+    if (contentType === 'multipart/json') {
+      res.status(200).json(messages);
+    }
+  } catch (error) {  
+    res.status(500).json({ error: 'Internal server error' });
   }
 }

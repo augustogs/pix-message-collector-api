@@ -35,7 +35,7 @@ export function generateRandomPixMessages(ispb: string, number: number): PixMess
   return messages;
 }
 
-function generateId(): string {
+export function generateId(): string {
   return uuidv4().replace(/-/g, '');
 }
 
