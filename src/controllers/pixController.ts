@@ -3,6 +3,9 @@ import { insertPixMessages, getPixMessages, logInteraction, getPixMessagesByInte
 import { generateId } from '../utils/dataGenerator';
 import { formatMessage } from '../utils/formatMessage';
 
+const MAX_WAIT_TIME = 8000;
+const POLLING_INTERVAL = 500;
+
 export const postMessages = async (req: Request, res: Response): Promise<void> => {
   try {
     const { ispb, number } = req.params;
@@ -25,49 +28,69 @@ export const getMessages = async (req: Request, res: Response): Promise<void> =>
   const contentType = req.headers['content-type'];
   const { ispb } = req.params;
   const limit = 10;
+  const interaction_id = generateId();
+  const startTime = Date.now();
 
   try {
-    const messages = await getPixMessages(ispb, limit);
-    const interaction_id = generateId();
+    while (Date.now() - startTime < MAX_WAIT_TIME) {
+      const messages = await getPixMessages(ispb, limit);
+      
+      if (messages.length > 0) {
+        await logInteraction(interaction_id, ispb, messages.map(msg => msg.endToEndId));
+        const pullNextUri = `/api/pix/${ispb}/stream/${interaction_id}`;
+        res.setHeader('Pull-Next', pullNextUri);
 
-    await logInteraction(interaction_id, ispb, messages.map(msg => msg.endToEndId));
+        const formattedMessages = messages.map(formatMessage);
+
+        if (!contentType || contentType === 'application/json') {
+          res.status(200).json(formattedMessages[0] || {});
+        } else if (contentType === 'multipart/json') {
+          res.status(200).json(formattedMessages);
+        }
+        return;
+      }
+      await new Promise(resolve => setTimeout(resolve, POLLING_INTERVAL)); 
+    }
 
     const pullNextUri = `/api/pix/${ispb}/stream/${interaction_id}`;
     res.setHeader('Pull-Next', pullNextUri);
+    res.status(204).end();
 
-    const formattedMessages = messages.map(formatMessage);
-
-    if (!contentType || contentType === 'application/json') {
-      res.status(200).json(formattedMessages[0] || {});
-    } 
-    
-    if (contentType === 'multipart/json') {
-      res.status(200).json(formattedMessages);
-    }
   } catch (error) {
     res.status(500).json({ error: 'Internal server error' });
   }
+
 };
 
 export const getMessagesByInteractionId = async (req: Request, res: Response): Promise<void> => {
   const contentType = req.headers['content-type'];
   const { ispb, interaction_id } = req.params;
   const limit = 10;
+  const startTime = Date.now();
 
   try {
-    const messages = await getPixMessagesByInteractionId(ispb, limit, interaction_id);
+    while (Date.now() - startTime < MAX_WAIT_TIME) {
+      const messages = await getPixMessagesByInteractionId(ispb, limit, interaction_id);
 
-    const pullNextUri = `/api/pix/${ispb}/stream/${messages.nextInteractionId}`;
+      if (messages.newMessages.length > 0) {
+        const pullNextUri = `/api/pix/${ispb}/stream/${messages.nextInteractionId}`;
+        res.setHeader('Pull-Next', pullNextUri);
+        
+        const formattedMessages = messages.newMessages.map(formatMessage);
+
+        if (!contentType || contentType === 'application/json') {
+          res.status(200).json(formattedMessages[0] || {});
+        } else if (contentType === 'multipart/json') {
+          res.status(200).json(formattedMessages);
+        }
+        return;
+      }
+      await new Promise(resolve => setTimeout(resolve, POLLING_INTERVAL)); 
+    }
+
+    const pullNextUri = `/api/pix/${ispb}/stream/${interaction_id}`;
     res.setHeader('Pull-Next', pullNextUri);
-
-    const formattedMessages = messages.newMessages.map(formatMessage);
-
-    if (!contentType || contentType === 'application/json') {
-      res.status(200).json(formattedMessages[0] || {});
-    }
-    if (contentType === 'multipart/json') {
-      res.status(200).json(formattedMessages);
-    }
+    res.status(204).end();
   } catch (error) {  
     res.status(500).json({ error: 'Internal server error' });
   }
