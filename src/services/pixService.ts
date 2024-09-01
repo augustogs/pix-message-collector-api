@@ -9,10 +9,8 @@ const pool = new Pool({
 
 export const insertPixMessages = async (ispb: string, number: number): Promise<PixMessage[]> => {
   const messages: PixMessage[] = generateRandomPixMessages(ispb, number);
-
+  const client = await pool.connect();
   try {
-    const client = await pool.connect();
-
     await client.query('BEGIN');
 
     for (const message of messages) {
@@ -47,14 +45,14 @@ export const insertPixMessages = async (ispb: string, number: number): Promise<P
         ]
       );
     }
-
     await client.query('COMMIT');
-    client.release();
   } catch (error) {
+    await client.query('ROLLBACK');
     console.error('Error inserting messages', error);
     throw error;
+  } finally {
+    client.release();
   }
-
   return messages;
 };
 
