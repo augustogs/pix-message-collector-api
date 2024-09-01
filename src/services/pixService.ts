@@ -57,18 +57,15 @@ export const insertPixMessages = async (ispb: string, number: number): Promise<P
 };
 
 export const getPixMessages = async (ispb: string, limit: number): Promise<PixMessage[]> => {
-  const query = `
-    SELECT pm.end_to_end_id AS "endToEndId", pm.*
-    FROM pix_messages pm
-    WHERE pm.recebedor_ispb = $1
-    LIMIT $2;
-`;
-  const values = [ispb, limit];
   const client = await pool.connect();
+  
   try {
-    const result = await client.query(query, values);
+    const result = await client.query(
+      `SELECT pm.end_to_end_id AS "endToEndId", pm.* FROM pix_messages pm WHERE pm.recebedor_ispb = $1
+       LIMIT $2;`, [ispb, limit]);
     return result.rows;
   } catch (error) {
+    console.error('Error executing query', error);
     throw error;
   } finally {
     client.release();
