@@ -7,8 +7,8 @@ router.post('/msgs/:ispb/:number', postMessages);
 
 router.get('/:ispb/stream/start', getMessages);
 
-router.get('/:ispb/stream/:interaction_id', getMessagesByInteractionId);
+router.get('/:ispb/stream/:interationId', getMessagesByInteractionId);
 
-router.delete('/:ispb/stream/:interaction_id', deleteStream);
+router.delete('/:ispb/stream/:interationId', deleteStream);
 
 export default router;

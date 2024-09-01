@@ -71,13 +71,13 @@ export const getMessages = async (req: Request, res: Response): Promise<void> =>
 
 export const getMessagesByInteractionId = async (req: Request, res: Response): Promise<void> => {
   const contentType = req.headers['content-type'];
-  const { ispb, interaction_id } = req.params;
+  const { ispb, interationId } = req.params;
   const limit = (contentType === 'multipart/json') ? 10 : 1;
   const startTime = Date.now();
 
   try {
     while (Date.now() - startTime < MAX_WAIT_TIME) {
-      const messages = await getPixMessagesByInteractionId(ispb, limit, interaction_id);
+      const messages = await getPixMessagesByInteractionId(ispb, limit, interationId);
 
       if (messages.newMessages.length > 0) {
         const pullNextUri = `/api/pix/${ispb}/stream/${messages.nextInteractionId}`;
@@ -95,7 +95,7 @@ export const getMessagesByInteractionId = async (req: Request, res: Response): P
       await new Promise(resolve => setTimeout(resolve, POLLING_INTERVAL)); 
     }
 
-    const pullNextUri = `/api/pix/${ispb}/stream/${interaction_id}`;
+    const pullNextUri = `/api/pix/${ispb}/stream/${interationId}`;
     res.setHeader('Pull-Next', pullNextUri);
     res.status(204).end();
   } catch (error) {  
@@ -104,10 +104,10 @@ export const getMessagesByInteractionId = async (req: Request, res: Response): P
 }
 
 export const deleteStream = async (req: Request, res: Response): Promise<void> => {
-  const { ispb, interaction_id } = req.params;
+  const { ispb, interationId } = req.params;
   
   try {
-    await finalizeStream(ispb, interaction_id);
+    await finalizeStream(ispb, interationId);
     res.status(200).json({ message: 'Stream finalized successfully' });
   } catch (error) {
     res.status(500).json({ error: 'Internal server error' });
