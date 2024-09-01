@@ -27,10 +27,10 @@ export const postMessages = async (req: Request, res: Response): Promise<void> =
 export const getMessages = async (req: Request, res: Response): Promise<void> => {
   const contentType = req.headers['content-type'];
   const { ispb } = req.params;
-  const limit = 10;
+  const limit = (contentType === 'multipart/json') ? 10 : 1;
   const interaction_id = generateId();
   const startTime = Date.now();
-
+  
   try {
     const canStartStream = await checkStreamLimit(ispb);
     if (!canStartStream) {
@@ -41,7 +41,7 @@ export const getMessages = async (req: Request, res: Response): Promise<void> =>
     await registerStream(ispb, interaction_id);
     
     while (Date.now() - startTime < MAX_WAIT_TIME) {
-      const messages = await getPixMessages(ispb, limit);
+      const messages = await getPixMessages(ispb, limit, interaction_id);
       
       if (messages.length > 0) {
         await logInteraction(interaction_id, ispb, messages.map(msg => msg.endToEndId));
@@ -72,7 +72,7 @@ export const getMessages = async (req: Request, res: Response): Promise<void> =>
 export const getMessagesByInteractionId = async (req: Request, res: Response): Promise<void> => {
   const contentType = req.headers['content-type'];
   const { ispb, interaction_id } = req.params;
-  const limit = 10;
+  const limit = (contentType === 'multipart/json') ? 10 : 1;
   const startTime = Date.now();
 
   try {

@@ -56,13 +56,23 @@ export const insertPixMessages = async (ispb: string, number: number): Promise<P
   return messages;
 };
 
-export const getPixMessages = async (ispb: string, limit: number): Promise<PixMessage[]> => {
+export const getPixMessages = async (ispb: string, limit: number, interaction_id: string): Promise<PixMessage[]> => {
   const client = await pool.connect();
-  
+
   try {
     const result = await client.query(
-      `SELECT pm.end_to_end_id AS "endToEndId", pm.* FROM pix_messages pm WHERE pm.recebedor_ispb = $1
-       LIMIT $2;`, [ispb, limit]);
+      `SELECT pm.end_to_end_id AS "endToEndId", pm.*
+       FROM pix_messages pm
+       WHERE pm.recebedor_ispb = $1 AND pm.interaction_id IS NULL
+       LIMIT $2 FOR UPDATE SKIP LOCKED;`, [ispb, limit]);
+    
+    if (result.rows.length > 0) {
+      const endToEndIds = result.rows.map(row => row.endToEndId);
+      await client.query(
+        `UPDATE pix_messages 
+         SET interaction_id = $1 
+         WHERE end_to_end_id = ANY($2::text[])`, [interaction_id, endToEndIds]);
+    }
     return result.rows;
   } catch (error) {
     console.error('Error executing query', error);
@@ -156,17 +166,29 @@ export const checkStreamLimit = async (ispb: string): Promise<boolean> => {
 };
 
 export const finalizeStream = async (ispb: string, interaction_id: string): Promise<void> => {
-  const query = `
-    UPDATE active_streams
-    SET status = 'finished'
-    WHERE ispb = $1 AND interaction_id = $2 AND status = 'active';
-  `;
-  const values = [ispb, interaction_id];
   const client = await pool.connect();
 
   try {
-    await client.query(query, values);
+    await client.query('BEGIN');
+
+    const updateStreamQuery = `
+      UPDATE active_streams
+      SET status = 'finished'
+      WHERE ispb = $1 AND interaction_id = $2 AND status = 'active';
+    `;
+    await client.query(updateStreamQuery, [ispb, interaction_id]);
+
+    const releaseMessagesQuery = `
+      UPDATE pix_messages
+      SET interaction_id = NULL
+      WHERE interaction_id = $1 AND recebedor_ispb = $2;
+    `;
+    await client.query(releaseMessagesQuery, [interaction_id, ispb]);
+
+    await client.query('COMMIT');
   } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Error finalizing stream', error);
     throw error;
   } finally {
     client.release();
