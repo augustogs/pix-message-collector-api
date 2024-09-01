@@ -64,15 +64,16 @@ export const getPixMessages = async (ispb: string, limit: number): Promise<PixMe
     FROM pix_messages pm
     WHERE pm.recebedor_ispb = $1
     LIMIT $2;
-  `;
+`;
   const values = [ispb, limit];
-
+  const client = await pool.connect();
   try {
-    const client = await pool.connect();
     const result = await client.query(query, values);
     return result.rows;
   } catch (error) {
     throw error;
+  } finally {
+    client.release();
   }
 };
 
@@ -113,11 +114,66 @@ export const logInteraction = async (interactionId: string, ispb: string, messag
   `;
 
   const values = [interactionId, ispb, messageIds];
-  
+  const client = await pool.connect();
   try {
-    const client = await pool.connect();
     await client.query(query, values);
   } catch (error) {
     throw error;
+  } finally {
+    client.release();
+  }
+};
+
+export const registerStream = async (ispb: string, interaction_id: string): Promise<void> => {
+  const query = `
+    INSERT INTO active_streams (ispb, interaction_id)
+    VALUES ($1, $2);
+  `;
+  const values = [ispb, interaction_id];
+  const client = await pool.connect();
+  
+  try {
+    await client.query(query, values);
+  } catch (error) {
+    throw error;
+  } finally {
+    client.release();
+  }
+};
+
+export const checkStreamLimit = async (ispb: string): Promise<boolean> => {
+  const query = `
+    SELECT COUNT(*) AS active_count
+    FROM active_streams
+    WHERE ispb = $1 AND status = 'active';
+  `;
+  const values = [ispb];
+  const client = await pool.connect();
+  
+  try {
+    const result = await client.query(query, values);
+    return parseInt(result.rows[0].active_count, 10) < 6;
+  } catch (error) {
+    throw error;
+  } finally {
+    client.release();
+  }
+};
+
+export const finalizeStream = async (ispb: string, interaction_id: string): Promise<void> => {
+  const query = `
+    UPDATE active_streams
+    SET status = 'finished'
+    WHERE ispb = $1 AND interaction_id = $2 AND status = 'active';
+  `;
+  const values = [ispb, interaction_id];
+  const client = await pool.connect();
+
+  try {
+    await client.query(query, values);
+  } catch (error) {
+    throw error;
+  } finally {
+    client.release();
   }
 };

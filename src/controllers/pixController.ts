@@ -1,10 +1,10 @@
 import { Request, Response } from 'express';
-import { insertPixMessages, getPixMessages, logInteraction, getPixMessagesByInteractionId } from '../services/pixService';
+import { insertPixMessages, getPixMessages, logInteraction, getPixMessagesByInteractionId, checkStreamLimit, registerStream, finalizeStream } from '../services/pixService';
 import { generateId } from '../utils/dataGenerator';
 import { formatMessage } from '../utils/formatMessage';
 
 const MAX_WAIT_TIME = 8000;
-const POLLING_INTERVAL = 500;
+const POLLING_INTERVAL = 5000;
 
 export const postMessages = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -32,6 +32,14 @@ export const getMessages = async (req: Request, res: Response): Promise<void> =>
   const startTime = Date.now();
 
   try {
+    const canStartStream = await checkStreamLimit(ispb);
+    if (!canStartStream) {
+      res.status(429).json({ error: 'Too many collectors for this ISPB' });
+      return;
+    }
+
+    await registerStream(ispb, interaction_id);
+    
     while (Date.now() - startTime < MAX_WAIT_TIME) {
       const messages = await getPixMessages(ispb, limit);
       
@@ -59,7 +67,6 @@ export const getMessages = async (req: Request, res: Response): Promise<void> =>
   } catch (error) {
     res.status(500).json({ error: 'Internal server error' });
   }
-
 };
 
 export const getMessagesByInteractionId = async (req: Request, res: Response): Promise<void> => {
@@ -95,3 +102,14 @@ export const getMessagesByInteractionId = async (req: Request, res: Response): P
     res.status(500).json({ error: 'Internal server error' });
   }
 }
+
+export const deleteStream = async (req: Request, res: Response): Promise<void> => {
+  const { ispb, interaction_id } = req.params;
+  
+  try {
+    await finalizeStream(ispb, interaction_id);
+    res.status(200).json({ message: 'Stream finalized successfully' });
+  } catch (error) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
