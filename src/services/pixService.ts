@@ -86,13 +86,15 @@ export const getPixMessagesByInteractionId = async (ispb: string, limit: number,
   const client = await pool.connect();
   
   try {
+    await client.query('BEGIN');
+
     const queryAllMessages = await client.query(`SELECT * FROM pix_messages where recebedor_ispb = $1`, [ispb]);
     const allMessages = queryAllMessages.rows;
   
     const queryLogInteraction =  await client.query(`SELECT message_ids FROM interaction_logs WHERE interaction_id = $1`, [interaction_id]);
     const messageIdsLog = queryLogInteraction.rows;
     
-    const messageIds = messageIdsLog[0].message_ids;
+    const messageIds = messageIdsLog[0]?.message_ids || [];
   
     const newMessages = allMessages.filter(message => !messageIds.includes(message.end_to_end_id)).slice(0, limit);
     const newMessagesIds = newMessages.map(msg => msg.end_to_end_id);
@@ -101,16 +103,20 @@ export const getPixMessagesByInteractionId = async (ispb: string, limit: number,
   
     const nextInteractionId = generateId();
     await logInteraction(nextInteractionId, ispb, messagesReturnedByInteraction);
-  
+
+    await client.query('COMMIT');
     return  {
       nextInteractionId,
       newMessages
     }; 
   } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Error in getPixMessagesByInteractionId:', error);
     throw error;
+  } finally {
+    client.release();
   }
 }
-
 
 export const logInteraction = async (interactionId: string, ispb: string, messageIds: string[]): Promise<void> => {
   const query = `
