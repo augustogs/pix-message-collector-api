@@ -1,0 +1,51 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model PixMessage {
+  id                          Int      @id @default(autoincrement())
+  endToEndId                  String   @unique @map("end_to_end_id")
+  valor                       Float
+  pagadorNome                 String   @map("pagador_nome")
+  pagadorCpfCnpj              String   @map("pagador_cpf_cnpj")
+  pagadorIspb                 String   @map("pagador_ispb")
+  pagadorAgencia              String   @map("pagador_agencia")
+  pagadorContaTransacional    String   @map("pagador_conta_transacional")
+  pagadorTipoConta            String   @map("pagador_tipo_conta")
+  recebedorNome               String   @map("recebedor_nome")
+  recebedorCpfCnpj            String   @map("recebedor_cpf_cnpj")
+  recebedorIspb               String   @map("recebedor_ispb")
+  recebedorAgencia            String   @map("recebedor_agencia")
+  recebedorContaTransacional  String   @map("recebedor_conta_transacional")
+  recebedorTipoConta          String   @map("recebedor_tipo_conta")
+  campoLivre                  String?  @map("campo_livre")
+  txId                        String?  @map("tx_id")
+  dataHoraPagamento           DateTime? @map("data_hora_pagamento")
+  interactionId               String?  @map("interaction_id")
+
+  @@map("pix_messages")
+}
+
+model InteractionLog {
+  interactionId String   @id @map("interaction_id")
+  ispb          String?
+  messageIds    String[] @db.VarChar(255) @map("message_ids")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@map("interaction_logs")
+}
+
+model ActiveStream {
+  id            Int      @id @default(autoincrement())
+  ispb          String
+  interactionId String   @map("interaction_id")
+  status        String   @default("active")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@map("active_streams")
+}
