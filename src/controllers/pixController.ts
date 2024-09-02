@@ -4,7 +4,7 @@ import { generateId } from '../utils/dataGenerator';
 import { formatMessage } from '../utils/formatMessage';
 
 const MAX_WAIT_TIME = 8000;
-const POLLING_INTERVAL = 5000;
+const POLLING_INTERVAL = 500;
 
 export const postMessages = async (req: Request, res: Response): Promise<void> => {
   try {
