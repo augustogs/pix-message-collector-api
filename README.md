@@ -85,5 +85,5 @@ A aplicação deverá estar sendo executada no caminho `http://localhost:3000`.
 #### Headers: `application/json | multipart/json`
 ---
 ### Interromper o recebimento de mensagens
-**Endpoint:** `DELETE /api/pix/{ispb}/stream/{interationId}`
+#### Endpoint: `DELETE /api/pix/{ispb}/stream/{interationId}`
 ---
